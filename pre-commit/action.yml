@@ -51,11 +51,19 @@ inputs:
   opentofu-version:
     description: 'The version of OpenTofu to install when use-opentofu is true'
     required: false
-    default: '1.11.0'
+    default: '1.11.4'
 
 runs:
   using: composite
   steps:
+    - name: Validate version inputs
+      shell: bash
+      run: |
+        if [[ "${{ inputs.use-opentofu }}" != "true" && -z "${{ inputs.terraform-version }}" ]]; then
+          echo "::error::terraform-version is required when use-opentofu is false"
+          exit 1
+        fi
+
     - name: Determine OS and Architecture
       id: os_arch
       shell: bash
