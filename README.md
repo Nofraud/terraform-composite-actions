@@ -61,9 +61,16 @@ The `clowdhaus/terraform-composite-actions/pre-commit` action will install the f
 #### Default
 
 - [pre-commit](https://github.com/pre-commit/pre-commit)
-- [terraform](https://github.com/hashicorp/terraform) using provided `terraform-version` input (required)
+- [terraform](https://github.com/hashicorp/terraform) using provided `terraform-version` input (required when `use-opentofu=false`)
 - [tflint](https://github.com/terraform-linters/tflint) using provided `tflint-version` input (default = `latest`)
 - [terraform-docs](https://github.com/terraform-docs/terraform-docs) using provided `terraform-docs-version` input (default = `v0.20.0`)
+
+#### OpenTofu Support
+
+- [OpenTofu](https://opentofu.org/) can be used instead of Terraform by setting `use-opentofu: true`
+- When enabled, OpenTofu is installed using the official [opentofu/setup-opentofu](https://github.com/opentofu/setup-opentofu) action
+- The `PCT_TFPATH` environment variable is automatically set to ensure pre-commit hooks use `tofu` instead of `terraform`
+- Use `opentofu-version` input to specify the version (default = `1.11.0`)
 
 #### Optional
 
@@ -71,7 +78,7 @@ The `clowdhaus/terraform-composite-actions/pre-commit` action will install the f
 - [trivy](https://aquasecurity.github.io/trivy), when `install-trivy=true` (default = `false`), using provided `trivy-version` input (default = `0.65.0`)
 - [hcledit](https://github.com/minamijoyo/hcledit) when `install-hcledit=true` (default = `false`), using provided `hcledit-version` input (default = `0.2.17`)
 
-#### Example
+#### Example (Terraform)
 
 ```yml
 jobs:
@@ -79,16 +86,34 @@ jobs:
     name: Pre-commit hooks execute
     runs-on: ubuntu-latest
     steps:
-      - name: Sign AWS Lambda artifact
+      - name: Run pre-commit with Terraform
         uses: clowdhaus/terraform-composite-actions/pre-commit@main
         with:
           # Configure default software
           terraform-version: 1.2.0
           terraform-docs-version: v0.16.0
-          terraform-architecture: amd64
           # Configure optional software
           install-hcledit: true
           hcledit-version: 0.2.3
+          args: "--all-files --color always --show-diff-on-failure"
+```
+
+#### Example (OpenTofu)
+
+```yml
+jobs:
+  pre-commit:
+    name: Pre-commit hooks execute
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run pre-commit with OpenTofu
+        uses: clowdhaus/terraform-composite-actions/pre-commit@main
+        with:
+          # Use OpenTofu instead of Terraform
+          use-opentofu: true
+          opentofu-version: 1.11.0
+          # Configure other software
+          terraform-docs-version: v0.20.0
           args: "--all-files --color always --show-diff-on-failure"
 ```
 
