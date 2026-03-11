@@ -146,10 +146,11 @@ runs:
 
     - name: Install OpenTofu v${{ inputs.opentofu-version }}
       if: inputs.use-opentofu == 'true'
-      uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
-      with:
-        tofu_version: ${{ inputs.opentofu-version }}
-        tofu_wrapper: false
+      shell: bash
+      run: |
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tofu.zip "https://github.com/opentofu/opentofu/releases/download/v${{ inputs.opentofu-version }}/tofu_${{ inputs.opentofu-version }}_${{ env.OS }}_${{ env.ARCH }}.zip"
+        sudo unzip -qq tofu.zip tofu -d /usr/bin/
+        rm tofu.zip 2> /dev/null
 
     - name: Set PCT_TFPATH for OpenTofu
       if: inputs.use-opentofu == 'true'
