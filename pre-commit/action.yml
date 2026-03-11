@@ -217,6 +217,18 @@ runs:
         sudo tar -xzf trivy.tar.gz -C /usr/bin/ trivy
         rm trivy.tar.gz 2> /dev/null
 
+    - name: Pre-warm Trivy checks bundle cache
+      shell: bash
+      if: ${{ inputs.install-trivy == 'true' }}
+      run: |
+        # Download the misconfig checks bundle once before pre-commit runs.
+        # Prevents race condition when multiple parallel trivy instances
+        # all try to download the bundle simultaneously, which can corrupt
+        # the cache and cause FATAL errors.
+        mkdir -p /tmp/trivy-warmup
+        trivy config /tmp/trivy-warmup >/dev/null 2>&1 || true
+        rm -rf /tmp/trivy-warmup
+
     - name: Initialize directories in parallel
       shell: bash
       if: ${{ inputs.parallelize-init == 'true' }}
