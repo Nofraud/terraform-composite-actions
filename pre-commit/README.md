@@ -85,6 +85,6 @@ When `use-opentofu: true`:
 | `install-tfsec` | Whether to install tfsec | No | `false` |
 | `tfsec-version` | Version of tfsec to install when enabled | No | `1.28.14` |
 | `install-trivy` | Whether to install trivy | No | `false` |
-| `trivy-version` | Version of trivy to install when enabled | No | `0.65.0` |
+| `trivy-version` | Version of trivy to install when enabled | No | `0.69.2` |
 | `parallelize-init` | Whether to parallelize `terraform init` across directories | No | `false` |
 | `args` | Arguments to pass to pre-commit run command | No | `--all-files --color always --show-diff-on-failure` |

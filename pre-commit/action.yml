@@ -39,7 +39,7 @@ inputs:
   trivy-version:
     description: Version of trivy to install when `install-trivy` is true
     required: false
-    default: 0.65.0
+    default: 0.69.2
   parallelize-init:
     description: Whether to parallelize 'terraform init' across directories
     required: false
@@ -214,9 +214,20 @@ runs:
       shell: bash
       if: ${{ inputs.install-trivy == 'true' }}
       run: |
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/trivy_${{ inputs.trivy-version }}_${{ env.TRIVY_OS }}-${{ env.TRIVY_ARCH }}.tar.gz
+        TRIVY_FILE="trivy_${{ inputs.trivy-version }}_${{ env.TRIVY_OS }}-${{ env.TRIVY_ARCH }}.tar.gz"
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy.tar.gz" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/${TRIVY_FILE}"
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy_checksums.txt" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/trivy_${{ inputs.trivy-version }}_checksums.txt"
+        EXPECTED_SHA=$(grep "${TRIVY_FILE}" ./trivy_checksums.txt | awk '{print $1}')
+        ACTUAL_SHA=$(sha256sum ./trivy.tar.gz | awk '{print $1}')
+        if [ "${EXPECTED_SHA}" != "${ACTUAL_SHA}" ]; then
+          echo "::error::SHA256 checksum mismatch for trivy ${TRIVY_FILE}!"
+          echo "  Expected: ${EXPECTED_SHA}"
+          echo "  Actual:   ${ACTUAL_SHA}"
+          exit 1
+        fi
+        echo "SHA256 checksum verified for trivy ${TRIVY_FILE}: ${ACTUAL_SHA}"
         sudo tar -xzf trivy.tar.gz -C /usr/bin/ trivy
-        rm trivy.tar.gz 2> /dev/null
+        rm trivy.tar.gz trivy_checksums.txt 2> /dev/null
 
     - name: Initialize directories in parallel
       shell: bash
