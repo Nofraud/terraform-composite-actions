@@ -218,6 +218,10 @@ runs:
         curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy.tar.gz" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/${TRIVY_FILE}"
         curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy_checksums.txt" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/trivy_${{ inputs.trivy-version }}_checksums.txt"
         EXPECTED_SHA=$(grep "${TRIVY_FILE}" ./trivy_checksums.txt | awk '{print $1}')
+        if [ -z "${EXPECTED_SHA}" ]; then
+          echo "::error::Could not find checksum for ${TRIVY_FILE} in checksums file"
+          exit 1
+        fi
         ACTUAL_SHA=$(sha256sum ./trivy.tar.gz | awk '{print $1}')
         if [ "${EXPECTED_SHA}" != "${ACTUAL_SHA}" ]; then
           echo "::error::SHA256 checksum mismatch for trivy ${TRIVY_FILE}!"
