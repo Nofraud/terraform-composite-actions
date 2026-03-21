@@ -84,7 +84,7 @@ This action supports [OpenTofu](https://opentofu.org/) as a drop-in replacement 
 #### Optional Tools
 
 - [tfsec](https://aquasecurity.github.io/tfsec), when `install-tfsec=true` (default = `false`), using provided `tfsec-version` input (default = `1.28.14`)
-- [trivy](https://aquasecurity.github.io/trivy), when `install-trivy=true` (default = `false`), using provided `trivy-version` input (default = `0.65.0`)
+- [trivy](https://aquasecurity.github.io/trivy), when `install-trivy=true` (default = `false`), using provided `trivy-version` input (default = `0.69.2`)
 - [hcledit](https://github.com/minamijoyo/hcledit) when `install-hcledit=true` (default = `false`), using provided `hcledit-version` input (default = `0.2.17`)
 
 #### Usage Examples
@@ -165,7 +165,7 @@ jobs:
           install-tfsec: true
           tfsec-version: 1.28.14
           install-trivy: true
-          trivy-version: 0.65.0
+          trivy-version: 0.69.2
           # Standard tools
           terraform-docs-version: v0.20.0
           args: "--all-files --color always --show-diff-on-failure"
@@ -185,7 +185,7 @@ jobs:
 | `install-tfsec` | Whether to install tfsec for security scanning | No | `false` |
 | `tfsec-version` | Version of tfsec to install when enabled | No | `1.28.14` |
 | `install-trivy` | Whether to install trivy for security scanning | No | `false` |
-| `trivy-version` | Version of trivy to install when enabled | No | `0.65.0` |
+| `trivy-version` | Version of trivy to install when enabled | No | `0.69.2` |
 | `parallelize-init` | Whether to parallelize `terraform init` across directories | No | `false` |
 | `args` | Arguments to pass to pre-commit run command | No | `--all-files --color always --show-diff-on-failure` |
 
