@@ -28,9 +28,14 @@ repos:
           - '--args=--only=terraform_required_providers'
           - '--args=--only=terraform_standard_module_structure'
           - '--args=--only=terraform_workspace_remote'
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/Nofraud/terraform-custom-checks
+    rev: production
+    hooks:
+      - id: terraform-custom-checks
