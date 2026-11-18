@@ -21,11 +21,11 @@ class PublicGit:
                     "GIT_CONFIG_COUNT": "0", "GIT_TERMINAL_PROMPT": "0"}
         self.call("init", "--bare", str(self.directory))
 
-    def call(self, *args):
+    def call(self, *args, input_data=None):
         command = ["/usr/bin/git", "-c", "credential.helper=", "-c", "core.hooksPath=/dev/null"]
         if args[0] != "init":
             command += ["--git-dir", str(self.directory)]
-        result = subprocess.run(command + list(args), env=self.env,
+        result = subprocess.run(command + list(args), env=self.env, input=input_data,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 check=False, timeout=60)
         require(result.returncode == 0)
@@ -49,24 +49,46 @@ def safe_path(raw):
 
 def copy_terraform(git, destination):
     records = git.call("ls-tree", "-r", "-z", "--full-tree", "FETCH_HEAD").split(b"\0")
-    count = total = 0
+    entries = []
     for record in filter(None, records):
         metadata, raw_path = record.split(b"\t", 1)
+        # The pinned private checker only supports native HCL files.
         if not raw_path.endswith(b".tf"):
             continue
         mode, kind, oid = metadata.decode("ascii").split(" ")
         require(mode in ("100644", "100755") and kind == "blob")
         head_sha(oid)
         path = safe_path(raw_path)
-        size = int(git.call("cat-file", "-s", oid))
-        count += 1
+        entries.append((path, oid.encode("ascii")))
+        require(len(entries) <= MAX_FILES)
+    if not entries:
+        return 0
+
+    requests = b"".join(oid + b"\n" for _, oid in entries)
+    headers = git.call("cat-file", "--batch-check", input_data=requests).splitlines()
+    require(len(headers) == len(entries))
+    sizes = []
+    total = 0
+    for (_, oid), header in zip(entries, headers):
+        fields = header.split()
+        require(len(fields) == 3 and fields[:2] == [oid, b"blob"] and fields[2].isdigit())
+        size = int(fields[2])
         total += size
-        require(count <= MAX_FILES and 0 <= size <= MAX_BLOB and total <= MAX_TOTAL)
-        blob = git.call("cat-file", "blob", oid)
-        require(len(blob) == size)
+        require(size <= MAX_BLOB and total <= MAX_TOTAL)
+        sizes.append(size)
+
+    # OIDs are immutable, and the preflight sizes bound the batch response.
+    data = git.call("cat-file", "--batch", input_data=requests)
+    offset = 0
+    for (path, _), header, size in zip(entries, headers, sizes):
+        payload = offset + len(header) + 1
+        end = payload + size
+        require(data[offset:payload] == header + b"\n" and data[end:end + 1] == b"\n")
         target = destination / path
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb") as output:
-            output.write(blob)
+            output.write(data[payload:end])
         target.chmod(0o600)
-    return count
+        offset = end + 1
+    require(offset == len(data))
+    return len(entries)

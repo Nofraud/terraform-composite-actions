@@ -23,6 +23,25 @@ class TerraformDataTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
+    def test_batch_checks_size_before_reading_contents(self):
+        git = FakeGit()
+        with patch.object(PREP, "MAX_BLOB", 1):
+            with self.assertRaises(GuardError):
+                PREP.copy_terraform(git, self.root)
+        self.assertEqual([args[1] for args in git.reads], ["-r", "--batch-check"])
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_native_files_are_read_with_one_content_batch(self):
+        git = FakeGit()
+        self.assertEqual(PREP.copy_terraform(git, self.root), 1)
+        self.assertEqual((self.root / git.path).read_bytes(), git.blob)
+        self.assertEqual([args[1] for args in git.reads], ["-r", "--batch-check", "--batch"])
+
+    def test_json_configuration_is_outside_pinned_checker_scope(self):
+        git = FakeGit(path="main.tf.json")
+        self.assertEqual(PREP.copy_terraform(git, self.root), 0)
+        self.assertEqual(len(git.reads), 1)
+
     def test_symlink_and_gitlink_are_rejected(self):
         for mode, kind in [("120000", "blob"), ("160000", "commit")]:
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:

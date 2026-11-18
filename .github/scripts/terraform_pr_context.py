@@ -76,6 +76,7 @@ def verified_context(event, api):
 
 
 def terraform_changed(api, number):
+    # Match the private hook's native .tf scope; it does not parse .tf.json.
     for page in range(1, 11):
         files = api.call(f"/pulls/{number}/files?per_page=100&page={page}")
         require(isinstance(files, list))

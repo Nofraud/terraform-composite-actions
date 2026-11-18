@@ -83,7 +83,7 @@ def main():
             try:
                 post_status(event, api, root, "failure")
             except Exception:
-                pass
+                print("Could not report the failed trusted check on the PR head.", file=sys.stderr)
             raise
         with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
             output.write(f"changed={str(changed).lower()}\nhead={context['head']}\npr={context['pr']}\n")

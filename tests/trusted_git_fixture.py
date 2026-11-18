@@ -15,12 +15,12 @@ class FakeGit:
         if self.stale:
             self.api.pr["head"]["sha"] = "d" * 40
 
-    def call(self, *args):
+    def call(self, *args, input_data=None):
         self.reads.append(args)
         if args[0] == "ls-tree":
             return f"{self.mode} {self.kind} {BLOB}\t{self.path}\0".encode() + b"100644 blob " + BLOB.encode() + b"\tevil.sh\0"
-        if args[:2] == ("cat-file", "-s"):
-            return str(len(self.blob)).encode()
-        if args[:2] == ("cat-file", "blob"):
-            return self.blob
+        if args[:2] in (("cat-file", "--batch-check"), ("cat-file", "--batch")):
+            assert input_data == BLOB.encode() + b"\n"
+            header = f"{BLOB} blob {len(self.blob)}\n".encode()
+            return header if args[1] == "--batch-check" else header + self.blob + b"\n"
         raise AssertionError("Unexpected Git invocation")
