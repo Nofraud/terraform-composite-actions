@@ -192,7 +192,9 @@ class ActionInputsTest(unittest.TestCase):
 
 
     def test_pr_config_matches_public_hooks(self):
-        local = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
+        local_config = (ROOT / ".pre-commit-config.yaml").read_text()
+        # Hosted Min and Max jobs install Terraform; local hooks use OpenTofu.
+        local = yaml.safe_load(local_config.replace("--tf-path=tofu", "--tf-path=terraform"))
         public = yaml.safe_load((ROOT / ".pre-commit-public.yaml").read_text())
         url = "https://github.com/Nofraud/terraform-custom-checks"
         self.assertEqual(len([r for r in local["repos"] if r["repo"] == url]), 1)

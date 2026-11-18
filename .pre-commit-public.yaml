@@ -4,17 +4,17 @@ repos:
     hooks:
       - id: terraform_fmt
         args:
-          - --hook-config=--tf-path=tofu
+          - --hook-config=--tf-path=terraform
       - id: terraform_validate
         args:
-          - --hook-config=--tf-path=tofu
+          - --hook-config=--tf-path=terraform
       - id: terraform_docs
         args:
-          - --hook-config=--tf-path=tofu
+          - --hook-config=--tf-path=terraform
           - '--args=--lockfile=false'
       - id: terraform_tflint
         args:
-          - --hook-config=--tf-path=tofu
+          - --hook-config=--tf-path=terraform
           - '--args=--only=terraform_deprecated_interpolation'
           - '--args=--only=terraform_deprecated_index'
           - '--args=--only=terraform_unused_declarations'
