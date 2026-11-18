@@ -1,0 +1,87 @@
+name: Trusted Terraform checks
+
+on:
+  workflow_run:
+    workflows: [Pre-Commit]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: trusted-terraform-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      statuses: write
+      id-token: write
+    steps:
+      - name: Check out trusted default-branch code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          path: .trusted
+          persist-credentials: false
+
+      - name: Prepare verified Terraform files as data
+        id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .trusted/.github/scripts/prepare-terraform-pr.py prepare
+
+      - name: Mint fixed private-hook read token
+        id: reader
+        if: steps.prepare.outputs.changed == 'true'
+        run: |
+          bash .trusted/.github/scripts/mint-ci-reader-token.sh
+
+      - name: Check out the trusted checker
+        if: steps.prepare.outputs.changed == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: Nofraud/terraform-custom-checks
+          ref: 9d4191fca477b29dc824736ad01867f602f172b0
+          token: ${{ steps.reader.outputs.token }}
+          path: .private-checker
+          persist-credentials: false
+
+      - name: Run only trusted rules on Terraform data
+        id: rules
+        if: steps.prepare.outputs.changed == 'true'
+        working-directory: ${{ runner.temp }}/trusted-terraform-pr/terraform-data
+        env:
+          CHECKER: ${{ github.workspace }}/.private-checker/terraform-all-checks.sh
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/checker-home"
+          if env -i PATH=/usr/bin:/bin HOME="$RUNNER_TEMP/checker-home" LC_ALL=C \
+            "$CHECKER" >"$RUNNER_TEMP/terraform-check-output.txt" 2>&1; then
+            echo 'result=success' >> "$GITHUB_OUTPUT"
+            echo 'Trusted Terraform rules passed.'
+          else
+            echo 'result=failure' >> "$GITHUB_OUTPUT"
+            echo 'Trusted Terraform rules failed. Raw output is withheld because it contains PR data.'
+          fi
+
+      - name: Report status on the verified current PR head
+        if: always() && steps.prepare.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_TERRAFORM: ${{ steps.prepare.outputs.changed }}
+          CHECK_RESULT: ${{ steps.rules.outputs.result }}
+        run: |
+          set -euo pipefail
+          result=failure
+          if [ "$HAS_TERRAFORM" = false ] || [ "$CHECK_RESULT" = success ]; then
+            result=success
+          fi
+          python3 .trusted/.github/scripts/prepare-terraform-pr.py status "$result"
+          [ "$result" = success ]
