@@ -6,6 +6,9 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
+
 env:
   TERRAFORM_DOCS_VERSION: v0.20.0
   TFLINT_VERSION: v0.59.1
@@ -19,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Get root directories
         id: dirs
@@ -34,10 +39,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Terraform min/max versions
         id: minMax
-        uses: clowdhaus/terraform-min-max@v2.1.0
+        uses: clowdhaus/terraform-min-max@a86951cbe89f4d15caec805f36aa1dd68863ae32 # v2.1.0
         with:
           directory: ${{ matrix.directory }}
 
@@ -48,7 +55,7 @@ jobs:
         with:
           terraform-version: ${{ steps.minMax.outputs.minVersion }}
           tflint-version: ${{ env.TFLINT_VERSION }}
-          args: 'terraform_validate --color=always --show-diff-on-failure --files ${{ matrix.directory }}/*'
+          args: 'terraform_validate --config .pre-commit-public.yaml --color=always --show-diff-on-failure --files ${{ matrix.directory }}/*'
 
       - name: Pre-commit Terraform ${{ steps.minMax.outputs.minVersion }}
         # Run only validate pre-commit check on min version supported
@@ -57,7 +64,7 @@ jobs:
         with:
           terraform-version: ${{ steps.minMax.outputs.minVersion }}
           tflint-version: ${{ env.TFLINT_VERSION }}
-          args: 'terraform_validate --color=always --show-diff-on-failure --files $(ls *.tf)'
+          args: 'terraform_validate --config .pre-commit-public.yaml --color=always --show-diff-on-failure --files $(ls *.tf)'
 
       - name: Selected Terraform version
         run: terraform version
@@ -70,12 +77,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{github.event.pull_request.head.repo.full_name}}
 
       - name: Terraform min/max versions
         id: minMax
-        uses: clowdhaus/terraform-min-max@v2.1.0
+        uses: clowdhaus/terraform-min-max@a86951cbe89f4d15caec805f36aa1dd68863ae32 # v2.1.0
 
       - name: Pre-commit Terraform ${{ steps.minMax.outputs.maxVersion }}
         uses: ./pre-commit
@@ -85,6 +93,7 @@ jobs:
           tflint-version: ${{ env.TFLINT_VERSION }}
           install-hcledit: true
           parallelize-init: true
+          args: '--config .pre-commit-public.yaml --all-files --color=always --show-diff-on-failure'
 
       - name: check
         run: hcledit --help

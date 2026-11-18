@@ -1,0 +1,28 @@
+name: Trusted Terraform check tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/private-terraform-checks.yml'
+      - '.github/workflows/trusted-terraform-check-tests.yml'
+      - '.github/scripts/**'
+      - 'tests/test_trusted_*.py'
+      - 'tests/trusted_*fixture*.py'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Test trusted checks with synthetic inputs
+        run: |
+          python3 -m venv "$RUNNER_TEMP/trusted-check-tests"
+          "$RUNNER_TEMP/trusted-check-tests/bin/pip" install --disable-pip-version-check PyYAML==6.0.3
+          "$RUNNER_TEMP/trusted-check-tests/bin/python" -m unittest discover -s tests -p 'test_trusted_*.py' -v
