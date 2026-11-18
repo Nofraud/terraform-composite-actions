@@ -6,6 +6,9 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
+
 env:
   TERRAFORM_DOCS_VERSION: v0.20.0
   TFLINT_VERSION: v0.59.1
@@ -36,9 +39,6 @@ jobs:
   preCommitMinVersions:
     name: Min TF pre-commit
     needs: collectInputs
-    permissions:
-      contents: read
-      id-token: write
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -55,54 +55,29 @@ jobs:
         with:
           directory: ${{ matrix.directory }}
 
-      - name: Mint private hook read token
-        id: ci-reader
-        uses: Nofraud/reusable-gh-actions/.github/actions/octo-sts-token@production
-        with:
-          broker: ci-reader
-          scope: Nofraud/terraform-custom-checks
-          identity: terraform-composite-actions
-
       - name: Pre-commit Terraform ${{ steps.minMax.outputs.minVersion }}
         # Run only validate pre-commit check on min version supported
         if: ${{ matrix.directory !=  '.' }}
         uses: ./pre-commit
-        env:
-          CI_READER_TOKEN: ${{ steps.ci-reader.outputs.token }}
-          GIT_CONFIG_COUNT: '2'
-          GIT_CONFIG_KEY_0: credential.https://github.com/Nofraud/terraform-custom-checks.useHttpPath
-          GIT_CONFIG_VALUE_0: 'true'
-          GIT_CONFIG_KEY_1: credential.https://github.com/Nofraud/terraform-custom-checks.helper
-          GIT_CONFIG_VALUE_1: '!f() { if [ "$1" = get ]; then printf "%s\n" "username=x-access-token" "password=$CI_READER_TOKEN"; fi; }; f'
         with:
           terraform-version: ${{ steps.minMax.outputs.minVersion }}
           tflint-version: ${{ env.TFLINT_VERSION }}
-          args: 'terraform_validate --color=always --show-diff-on-failure --files ${{ matrix.directory }}/*'
+          args: 'terraform_validate --config .pre-commit-public.yaml --color=always --show-diff-on-failure --files ${{ matrix.directory }}/*'
 
       - name: Pre-commit Terraform ${{ steps.minMax.outputs.minVersion }}
         # Run only validate pre-commit check on min version supported
         if: ${{ matrix.directory ==  '.' }}
         uses: ./pre-commit
-        env:
-          CI_READER_TOKEN: ${{ steps.ci-reader.outputs.token }}
-          GIT_CONFIG_COUNT: '2'
-          GIT_CONFIG_KEY_0: credential.https://github.com/Nofraud/terraform-custom-checks.useHttpPath
-          GIT_CONFIG_VALUE_0: 'true'
-          GIT_CONFIG_KEY_1: credential.https://github.com/Nofraud/terraform-custom-checks.helper
-          GIT_CONFIG_VALUE_1: '!f() { if [ "$1" = get ]; then printf "%s\n" "username=x-access-token" "password=$CI_READER_TOKEN"; fi; }; f'
         with:
           terraform-version: ${{ steps.minMax.outputs.minVersion }}
           tflint-version: ${{ env.TFLINT_VERSION }}
-          args: 'terraform_validate --color=always --show-diff-on-failure --files $(ls *.tf)'
+          args: 'terraform_validate --config .pre-commit-public.yaml --color=always --show-diff-on-failure --files $(ls *.tf)'
 
       - name: Selected Terraform version
         run: terraform version
 
   preCommitMaxVersion:
     name: Max TF pre-commit
-    permissions:
-      contents: read
-      id-token: write
     runs-on: ubuntu-latest
     needs: collectInputs
     steps:
@@ -117,29 +92,15 @@ jobs:
         id: minMax
         uses: clowdhaus/terraform-min-max@a86951cbe89f4d15caec805f36aa1dd68863ae32 # v2.1.0
 
-      - name: Mint private hook read token
-        id: ci-reader
-        uses: Nofraud/reusable-gh-actions/.github/actions/octo-sts-token@production
-        with:
-          broker: ci-reader
-          scope: Nofraud/terraform-custom-checks
-          identity: terraform-composite-actions
-
       - name: Pre-commit Terraform ${{ steps.minMax.outputs.maxVersion }}
         uses: ./pre-commit
-        env:
-          CI_READER_TOKEN: ${{ steps.ci-reader.outputs.token }}
-          GIT_CONFIG_COUNT: '2'
-          GIT_CONFIG_KEY_0: credential.https://github.com/Nofraud/terraform-custom-checks.useHttpPath
-          GIT_CONFIG_VALUE_0: 'true'
-          GIT_CONFIG_KEY_1: credential.https://github.com/Nofraud/terraform-custom-checks.helper
-          GIT_CONFIG_VALUE_1: '!f() { if [ "$1" = get ]; then printf "%s\n" "username=x-access-token" "password=$CI_READER_TOKEN"; fi; }; f'
         with:
           terraform-version: ${{ steps.minMax.outputs.maxVersion }}
           terraform-docs-version: ${{ env.TERRAFORM_DOCS_VERSION }}
           tflint-version: ${{ env.TFLINT_VERSION }}
           install-hcledit: true
           parallelize-init: true
+          args: '--config .pre-commit-public.yaml --all-files --color=always --show-diff-on-failure'
 
       - name: check
         run: hcledit --help

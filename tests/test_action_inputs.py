@@ -191,71 +191,12 @@ class ActionInputsTest(unittest.TestCase):
                 self.assertNotIn("${{ inputs.", item.get("run", ""))
 
 
-    def reader_workflow(self):
-        return yaml.safe_load((ROOT / ".github/workflows/pre-commit.yml").read_text())
-
-    def reader_env(self):
-        workflow = self.reader_workflow()
-        action = next(s for s in workflow["jobs"]["preCommitMaxVersion"]["steps"]
-                      if s.get("uses") == "./pre-commit")
-        env = dict(os.environ, **action["env"], HOME=str(self.cwd),
-                   GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
-                   GIT_TERMINAL_PROMPT="0")
-        env.pop("GIT_CONFIG_PARAMETERS", None)
-        env["CI_READER_TOKEN"] = "fixture-reader-value"
-        return env
-
-    def test_private_hook_jobs_mint_only_scoped_read_tokens(self):
-        workflow = self.reader_workflow()
-        for name, job in workflow["jobs"].items():
-            checkouts = [s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@")]
-            self.assertTrue(all(s["with"]["persist-credentials"] is False for s in checkouts))
-            if name == "collectInputs":
-                self.assertNotEqual(job.get("permissions", {}).get("id-token"), "write")
-                self.assertFalse(any(s.get("id") == "ci-reader" for s in job["steps"]))
-                continue
-            self.assertEqual(job["permissions"], {"contents": "read", "id-token": "write"})
-            mint = next(s for s in job["steps"] if s.get("id") == "ci-reader")
-            self.assertEqual(mint["with"], {
-                "broker": "ci-reader", "scope": "Nofraud/terraform-custom-checks",
-                "identity": "terraform-composite-actions",
-            })
-            self.assertEqual(mint["uses"], "Nofraud/reusable-gh-actions/.github/actions/octo-sts-token@production")
-            for index, action in enumerate(job["steps"]):
-                if action.get("uses") != "./pre-commit":
-                    continue
-                self.assertLess(job["steps"].index(mint), index)
-                self.assertEqual(action["env"]["CI_READER_TOKEN"], "${{ steps.ci-reader.outputs.token }}")
-
-    def test_private_hook_credential_works_in_fresh_cache_only_for_target(self):
-        declared = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
-        self.assertIn("https://github.com/Nofraud/terraform-custom-checks",
-                      [repo["repo"] for repo in declared["repos"]])
-        env = self.reader_env()
-        for host, path, expected in (
-            ("github.com", "Nofraud/terraform-custom-checks", True),
-            ("github.com", "Nofraud/other", False),
-            ("other.invalid", "Nofraud/terraform-custom-checks", False),
-        ):
-            with self.subTest(host=host, path=path):
-                result = subprocess.run(
-                    ["git", "credential", "fill"], cwd=self.cwd, env=env,
-                    input=f"protocol=https\nhost={host}\npath={path}\n\n",
-                    text=True, capture_output=True,
-                )
-                self.assertEqual(result.returncode == 0, expected)
-                self.assertEqual("password=fixture-reader-value" in result.stdout, expected)
-        self.assertFalse((self.cwd / ".git-credentials").exists())
-
-    def test_private_hook_credential_is_not_saved_on_approval(self):
-        result = subprocess.run(
-            ["git", "credential", "approve"], cwd=self.cwd, env=self.reader_env(),
-            input="protocol=https\nhost=github.com\npath=Nofraud/terraform-custom-checks\nusername=x-access-token\npassword=fixture-reader-value\n\n",
-            text=True, capture_output=True,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse((self.cwd / ".git-credentials").exists())
-
+    def test_pr_config_matches_public_hooks(self):
+        local = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
+        public = yaml.safe_load((ROOT / ".pre-commit-public.yaml").read_text())
+        url = "https://github.com/Nofraud/terraform-custom-checks"
+        self.assertEqual(len([r for r in local["repos"] if r["repo"] == url]), 1)
+        self.assertEqual(public["repos"], [r for r in local["repos"] if r["repo"] != url])
 
 
 if __name__ == "__main__":
