@@ -16,9 +16,18 @@ runs:
   steps:
     - name: Commit files
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        TARGET_REPOSITORY: ${{ inputs.github-repository }}
+        GIT_BRANCH: ${{ inputs.git-branch }}
       run: |
+        if [[ ! "$TARGET_REPOSITORY" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+$ ]]; then
+          echo "::error::github-repository must be owner/repository"
+          exit 1
+        fi
+        git check-ref-format --branch "$GIT_BRANCH" >/dev/null
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git commit -m 'chore: auto format and update docs' -a || echo 'Nothing to update'
-        remote_repo="https://${GITHUB_ACTOR}:${{ inputs.github-token }}@github.com/${{ inputs.github-repository }}.git"
-        git push "${remote_repo}" HEAD:${{ inputs.git-branch }} || true
+        remote_repo="https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/${TARGET_REPOSITORY}.git"
+        git push "${remote_repo}" "HEAD:${GIT_BRANCH}" || true

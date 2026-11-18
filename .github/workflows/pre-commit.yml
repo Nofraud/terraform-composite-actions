@@ -25,6 +25,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test action input handling
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/action-input-tests"
+          "$RUNNER_TEMP/action-input-tests/bin/pip" install --disable-pip-version-check PyYAML==6.0.3
+          "$RUNNER_TEMP/action-input-tests/bin/python" -m unittest discover -s tests -v
+
       - name: Get root directories
         id: dirs
         uses: ./directories
