@@ -58,8 +58,11 @@ runs:
   steps:
     - name: Validate version inputs
       shell: bash
+      env:
+        PC_USE_OPENTOFU: ${{ inputs.use-opentofu }}
+        PC_TERRAFORM_VERSION: ${{ inputs.terraform-version }}
       run: |
-        if [[ "${{ inputs.use-opentofu }}" != "true" && -z "${{ inputs.terraform-version }}" ]]; then
+        if [[ "${PC_USE_OPENTOFU}" != "true" && -z "${PC_TERRAFORM_VERSION}" ]]; then
           echo "::error::terraform-version is required when use-opentofu is false"
           exit 1
         fi
@@ -147,8 +150,10 @@ runs:
     - name: Install OpenTofu v${{ inputs.opentofu-version }}
       if: inputs.use-opentofu == 'true'
       shell: bash
+      env:
+        PC_OPENTOFU_VERSION: ${{ inputs.opentofu-version }}
       run: |
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tofu.zip "https://github.com/opentofu/opentofu/releases/download/v${{ inputs.opentofu-version }}/tofu_${{ inputs.opentofu-version }}_${{ env.OS }}_${{ env.ARCH }}.zip"
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tofu.zip "https://github.com/opentofu/opentofu/releases/download/v${PC_OPENTOFU_VERSION}/tofu_${PC_OPENTOFU_VERSION}_${OS}_${ARCH}.zip"
         sudo unzip -qq tofu.zip tofu -d /usr/bin/
         rm tofu.zip 2> /dev/null
 
@@ -160,11 +165,13 @@ runs:
     - name: Install Terraform v${{ inputs.terraform-version }}
       if: inputs.use-opentofu != 'true'
       shell: bash
+      env:
+        PC_TERRAFORM_VERSION: ${{ inputs.terraform-version }}
       run: |
         rm -rf $(which terraform)
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSO https://releases.hashicorp.com/terraform/${{ inputs.terraform-version }}/terraform_${{ inputs.terraform-version }}_${{ env.OS }}_${{ env.ARCH }}.zip
-        sudo unzip -qq terraform_${{ inputs.terraform-version }}_${{ env.OS }}_${{ env.ARCH }}.zip terraform -d /usr/bin/
-        rm terraform_${{ inputs.terraform-version }}_${{ env.OS }}_${{ env.ARCH }}.zip 2> /dev/null
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSO "https://releases.hashicorp.com/terraform/${PC_TERRAFORM_VERSION}/terraform_${PC_TERRAFORM_VERSION}_${OS}_${ARCH}.zip"
+        sudo unzip -qq "terraform_${PC_TERRAFORM_VERSION}_${OS}_${ARCH}.zip" terraform -d /usr/bin/
+        rm "terraform_${PC_TERRAFORM_VERSION}_${OS}_${ARCH}.zip" 2> /dev/null
 
     - name: Install pre-commit
       shell: bash
@@ -176,20 +183,24 @@ runs:
 
     - name: Install terraform-docs
       shell: bash
+      env:
+        PC_TERRAFORM_DOCS_VERSION: ${{ inputs.terraform-docs-version }}
       run: |
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./terraform-docs.tar.gz https://github.com/terraform-docs/terraform-docs/releases/download/${{ inputs.terraform-docs-version }}/terraform-docs-${{ inputs.terraform-docs-version }}-${{ env.OS }}-${{ env.ARCH }}.tar.gz
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./terraform-docs.tar.gz "https://github.com/terraform-docs/terraform-docs/releases/download/${PC_TERRAFORM_DOCS_VERSION}/terraform-docs-${PC_TERRAFORM_DOCS_VERSION}-${OS}-${ARCH}.tar.gz"
         sudo tar -xzf terraform-docs.tar.gz -C /usr/bin/ terraform-docs
         rm terraform-docs.tar.gz 2> /dev/null
 
     - name: Install tflint
       shell: bash
+      env:
+        PC_TFLINT_VERSION: ${{ inputs.tflint-version }}
       run: |
         rm -rf $(which tflint)
 
-        if [[ "${{ inputs.tflint-version }}" == "latest" ]]; then
-          curl --retry 3 --retry-all-errors --retry-delay 3 -sSL "$(curl --retry 3 --retry-all-errors --retry-delay 3 -s https://api.github.com/repos/terraform-linters/tflint/releases/latest | grep -o -E "https://.+?_${{ env.OS }}_${{ env.ARCH }}.zip")" > tflint.zip
+        if [[ "${PC_TFLINT_VERSION}" == "latest" ]]; then
+          curl --retry 3 --retry-all-errors --retry-delay 3 -sSL "$(curl --retry 3 --retry-all-errors --retry-delay 3 -s https://api.github.com/repos/terraform-linters/tflint/releases/latest | grep -o -E "https://.+?_${OS}_${ARCH}.zip")" > tflint.zip
         else
-          curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tflint.zip https://github.com/terraform-linters/tflint/releases/download/${{ inputs.tflint-version }}/tflint_${{ env.OS }}_${{ env.ARCH }}.zip
+          curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tflint.zip "https://github.com/terraform-linters/tflint/releases/download/${PC_TFLINT_VERSION}/tflint_${OS}_${ARCH}.zip"
         fi
         sudo unzip -qq tflint.zip tflint -d /usr/bin/
         rm tflint.zip 2> /dev/null
@@ -197,26 +208,32 @@ runs:
     - name: Install hcledit
       shell: bash
       if: ${{ inputs.install-hcledit == 'true' }}
+      env:
+        PC_HCLEDIT_VERSION: ${{ inputs.hcledit-version }}
       run: |
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./hcledit.tar.gz https://github.com/minamijoyo/hcledit/releases/download/v${{ inputs.hcledit-version }}/hcledit_${{ inputs.hcledit-version }}_${{ env.OS }}_${{ env.ARCH }}.tar.gz
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./hcledit.tar.gz "https://github.com/minamijoyo/hcledit/releases/download/v${PC_HCLEDIT_VERSION}/hcledit_${PC_HCLEDIT_VERSION}_${OS}_${ARCH}.tar.gz"
         sudo tar -xzf hcledit.tar.gz -C /usr/bin/ hcledit
         rm hcledit.tar.gz 2> /dev/null
 
     - name: Install tfsec
       shell: bash
       if: ${{ inputs.install-tfsec == 'true' }}
+      env:
+        PC_TFSEC_VERSION: ${{ inputs.tfsec-version }}
       run: |
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tfsec.tar.gz https://github.com/aquasecurity/tfsec/releases/download/v${{ inputs.tfsec-version }}/tfsec_${{ inputs.tfsec-version }}_${{ env.OS }}_${{ env.ARCH }}.tar.gz
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo ./tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${PC_TFSEC_VERSION}/tfsec_${PC_TFSEC_VERSION}_${OS}_${ARCH}.tar.gz"
         sudo tar -xzf tfsec.tar.gz -C /usr/bin/ tfsec tfsec-checkgen
         rm tfsec.tar.gz 2> /dev/null
 
     - name: Install trivy
       shell: bash
       if: ${{ inputs.install-trivy == 'true' }}
+      env:
+        PC_TRIVY_VERSION: ${{ inputs.trivy-version }}
       run: |
-        TRIVY_FILE="trivy_${{ inputs.trivy-version }}_${{ env.TRIVY_OS }}-${{ env.TRIVY_ARCH }}.tar.gz"
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy.tar.gz" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/${TRIVY_FILE}"
-        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy_checksums.txt" "https://github.com/aquasecurity/trivy/releases/download/v${{ inputs.trivy-version }}/trivy_${{ inputs.trivy-version }}_checksums.txt"
+        TRIVY_FILE="trivy_${PC_TRIVY_VERSION}_${TRIVY_OS}-${TRIVY_ARCH}.tar.gz"
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy.tar.gz" "https://github.com/aquasecurity/trivy/releases/download/v${PC_TRIVY_VERSION}/${TRIVY_FILE}"
+        curl --retry 3 --retry-all-errors --retry-delay 3 -sSLo "./trivy_checksums.txt" "https://github.com/aquasecurity/trivy/releases/download/v${PC_TRIVY_VERSION}/trivy_${PC_TRIVY_VERSION}_checksums.txt"
         EXPECTED_SHA=$(grep "${TRIVY_FILE}" ./trivy_checksums.txt | awk '{print $1}')
         if [ -z "${EXPECTED_SHA}" ]; then
           echo "::error::Could not find checksum for ${TRIVY_FILE} in checksums file"

@@ -16,9 +16,13 @@ runs:
   steps:
     - name: Commit files
       shell: bash
+      env:
+        COMMIT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        COMMIT_GITHUB_REPOSITORY: ${{ inputs.github-repository }}
+        COMMIT_GIT_BRANCH: ${{ inputs.git-branch }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git commit -m 'chore: auto format and update docs' -a || echo 'Nothing to update'
-        remote_repo="https://${GITHUB_ACTOR}:${{ inputs.github-token }}@github.com/${{ inputs.github-repository }}.git"
-        git push "${remote_repo}" HEAD:${{ inputs.git-branch }} || true
+        remote_repo="https://${GITHUB_ACTOR}:${COMMIT_GITHUB_TOKEN}@github.com/${COMMIT_GITHUB_REPOSITORY}.git"
+        git push "${remote_repo}" "HEAD:${COMMIT_GIT_BRANCH}" || true
